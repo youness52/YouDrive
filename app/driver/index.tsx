@@ -32,6 +32,8 @@ export default function DriverHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalIndex, setModalIndex] = useState(0); // current slide index
+  const [highlightedTrip, setHighlightedTrip] = useState<RideRequest | null>(null);
+
 
   const driverQuery = useQuery({
     queryKey: ['driver', user?.id],
@@ -173,6 +175,27 @@ export default function DriverHomeScreen() {
                 <Car size={24} color="#fff" />
               </View>
             </Marker>
+
+
+                   {highlightedTrip && (
+          <>
+            <Marker
+              coordinate={{ latitude: highlightedTrip.pickup_lat, longitude: highlightedTrip.pickup_lng }}
+            >
+              <View style={styles.pickupMarker}>
+                <MapPin size={20} color="#fff" />
+              </View>
+            </Marker>
+            <Marker
+              coordinate={{ latitude: highlightedTrip.dest_lat, longitude: highlightedTrip.dest_lng }}
+            >
+              <View style={styles.destMarker}>
+                <Navigation size={20} color="#fff" />
+              </View>
+            </Marker>
+          </>
+        )}
+        
             <Circle
               center={location}
               radius={3000}
@@ -299,34 +322,26 @@ export default function DriverHomeScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <MapView
-                  style={{ height: 160, borderRadius: 16 }}
-                  provider={Platform.OS === 'web' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE}
-                  initialRegion={{
-                    latitude: req.pickup_lat,
-                    longitude: req.pickup_lng,
-                    latitudeDelta: 0.05,
-                    longitudeDelta: 0.05,
-                  }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                >
-                  <Marker coordinate={{ latitude: req.pickup_lat, longitude: req.pickup_lng }}>
-                    <View style={styles.pickupMarker}>
-                      <MapPin size={20} color="#fff" />
-                    </View>
-                  </Marker>
-                  <Marker coordinate={{ latitude: req.dest_lat, longitude: req.dest_lng }}>
-                    <View style={styles.destMarker}>
-                      <Navigation size={20} color="#fff" />
-                    </View>
-                  </Marker>
-                </MapView>
+             
+                   <TouchableOpacity
+                    style={styles.showTripButton}
+                    onPress={() => {
+                      setHighlightedTrip(req);
+                      setShowModal(false);
+                    }}
+                  >
+                    <Text style={styles.showTripButtonText}>Show Trip on Map</Text>
+                  </TouchableOpacity>
+
+
+
 
                 <View style={styles.tripInfo}>
                   <Text>Distance: {req.distance.toFixed(1)} km</Text>
                   <Text>Offer: ${(req.passenger_price || req.suggested_price).toFixed(2)}</Text>
                 </View>
+
+                
 
                 <View style={styles.modalActions}>
                   <TouchableOpacity
@@ -409,4 +424,7 @@ const styles = StyleSheet.create({
   pagination: { flexDirection: 'row', justifyContent: 'center', marginTop: 8, gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#d1d5db' },
   activeDot: { backgroundColor: '#10b981' },
+    showTripButton: { backgroundColor: '#3b82f6', paddingVertical: 12, borderRadius: 12, marginTop: 8, alignItems: 'center' },
+  showTripButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+ 
 });

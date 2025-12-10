@@ -8,6 +8,8 @@ import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Car, MapPin, Navigation, User, Check, Phone } from 'lucide-react-native';
 import { useEffect, useState, useRef } from 'react';
+import * as Linking from 'expo-linking';
+
 import {
   ActivityIndicator,
   Alert,
@@ -32,7 +34,7 @@ export default function DriverTrackingScreen() {
     queryKey: ['driver', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      
+
       const { data, error } = await supabase
         .from('drivers')
         .select('*')
@@ -123,7 +125,7 @@ export default function DriverTrackingScreen() {
             if (passengerLocation) {
               const start = passengerLocation;
               const end = newLocation;
-              
+
               let step = 0;
               const steps = 20;
               const animationInterval = setInterval(() => {
@@ -154,7 +156,7 @@ export default function DriverTrackingScreen() {
 
     try {
       await updateRideStatus.mutateAsync({ rideId: activeRide.id, status });
-      
+
       if (status === 'completed') {
         Alert.alert('Trip Completed', 'Great job! Earnings have been added.', [
           { text: 'OK', onPress: () => router.replace('/driver') },
@@ -252,13 +254,20 @@ export default function DriverTrackingScreen() {
                 {activeRide.passenger?.name || 'Passenger'}
               </Text>
               <Text style={styles.tripDetails}>
-                {activeRide.distance.toFixed(1)} km • $
+                {activeRide.distance.toFixed(1)} km • DH
                 {(activeRide.passenger_price || activeRide.suggested_price).toFixed(2)}
               </Text>
             </View>
             {activeRide.status !== 'pending' && (
               <TouchableOpacity style={styles.phoneButton}>
-                <Phone size={20} color="#10b981" />
+                <Phone
+                  size={20}
+                  color="#10b981"
+                  onPress={() => Linking.openURL(`tel:${activeRide.passenger?.phone}`)}
+                />
+
+
+
               </TouchableOpacity>
             )}
           </View>
