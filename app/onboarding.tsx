@@ -1,7 +1,8 @@
+// app/onboarding.tsx
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useRouter } from 'expo-router';
-import { Car, Users } from 'lucide-react-native';
-import { useState } from 'react';
+import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
@@ -18,15 +19,30 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function OnboardingScreen() {
   const [name, setName] = useState('');
   const [selectedRole, setSelectedRole] = useState<'passenger' | 'driver' | null>(null);
-  const { completeProfile } = useAuth();
+
+  const { user, completeProfile } = useAuth();
   const router = useRouter();
+
+  // ------------------------------------
+  // ✅ AUTO REDIRECT IF PROFILE COMPLETE
+  // ------------------------------------
+  useEffect(() => {
+    if (!user) return;
+
+    if (user?.role && user?.name) {
+      if (user.role === 'passenger') {
+        router.replace('/passenger');
+      } else {
+        router.replace('/driver');
+      }
+    }
+  }, [user]);
 
   const handleComplete = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter your name');
       return;
     }
-
     if (!selectedRole) {
       Alert.alert('Error', 'Please select a role');
       return;
@@ -34,14 +50,14 @@ export default function OnboardingScreen() {
 
     try {
       await completeProfile.mutateAsync({ name, role: selectedRole });
-      
+
       if (selectedRole === 'passenger') {
         router.replace('/passenger');
       } else {
         router.replace('/driver');
       }
-    } catch (error) {
-      console.error('Complete profile error:', error);
+    } catch (err) {
+      console.error('Complete profile error:', err);
       Alert.alert('Error', 'Failed to complete profile. Please try again.');
     }
   };
@@ -72,7 +88,7 @@ export default function OnboardingScreen() {
 
             <View style={styles.roleSection}>
               <Text style={styles.roleLabel}>I want to be a:</Text>
-              
+
               <View style={styles.roleButtons}>
                 <TouchableOpacity
                   style={[
@@ -81,7 +97,8 @@ export default function OnboardingScreen() {
                   ]}
                   onPress={() => setSelectedRole('passenger')}
                 >
-                  <Users
+                  <FontAwesome5
+                    name="users"
                     size={32}
                     color={selectedRole === 'passenger' ? '#10b981' : '#6b7280'}
                   />
@@ -102,7 +119,8 @@ export default function OnboardingScreen() {
                   ]}
                   onPress={() => setSelectedRole('driver')}
                 >
-                  <Car
+                  <MaterialCommunityIcons
+                    name="car"
                     size={32}
                     color={selectedRole === 'driver' ? '#10b981' : '#6b7280'}
                   />
@@ -118,15 +136,8 @@ export default function OnboardingScreen() {
               </View>
             </View>
 
-            <TouchableOpacity
-              style={[
-                styles.button,
-                completeProfile.isPending && styles.buttonDisabled,
-              ]}
-              onPress={handleComplete}
-              disabled={completeProfile.isPending}
-            >
-              {completeProfile.isPending ? (
+            <TouchableOpacity style={styles.button} onPress={handleComplete}>
+              {completeProfile.isLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.buttonText}>Continue</Text>
@@ -140,34 +151,13 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
-  },
-  header: {
-    marginBottom: 48,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700' as const,
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  form: {
-    gap: 24,
-  },
+  safe: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1 },
+  content: { flex: 1, padding: 24, justifyContent: 'center' },
+  header: { marginBottom: 48 },
+  title: { fontSize: 32, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#6b7280' },
+  form: { gap: 24 },
   inputContainer: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -177,22 +167,10 @@ const styles = StyleSheet.create({
     height: 56,
     justifyContent: 'center',
   },
-  input: {
-    fontSize: 16,
-    color: '#111827',
-  },
-  roleSection: {
-    gap: 16,
-  },
-  roleLabel: {
-    fontSize: 18,
-    fontWeight: '600' as const,
-    color: '#111827',
-  },
-  roleButtons: {
-    flexDirection: 'row',
-    gap: 16,
-  },
+  input: { fontSize: 16, color: '#111827' },
+  roleSection: { gap: 16 },
+  roleLabel: { fontSize: 18, fontWeight: '600', color: '#111827' },
+  roleButtons: { flexDirection: 'row', gap: 16 },
   roleButton: {
     flex: 1,
     backgroundColor: '#fff',
@@ -203,18 +181,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  roleButtonActive: {
-    borderColor: '#10b981',
-    backgroundColor: '#ecfdf5',
-  },
-  roleButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#6b7280',
-  },
-  roleButtonTextActive: {
-    color: '#10b981',
-  },
+  roleButtonActive: { borderColor: '#10b981', backgroundColor: '#ecfdf5' },
+  roleButtonText: { fontSize: 16, fontWeight: '600', color: '#6b7280' },
+  roleButtonTextActive: { color: '#10b981' },
   button: {
     backgroundColor: '#10b981',
     borderRadius: 12,
@@ -222,12 +191,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600' as const,
-  },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

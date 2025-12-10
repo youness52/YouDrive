@@ -26,8 +26,8 @@ export default function PassengerRequestScreen() {
   const [pickupLat] = useState(params.pickupLat ? String(params.pickupLat) : '37.7749');
   const [pickupLng] = useState(params.pickupLng ? String(params.pickupLng) : '-122.4194');
   const [pickupAddress] = useState(params.pickupAddress ? String(params.pickupAddress) : 'Selected Location');
-  const [destLat] = useState('37.7849');
-  const [destLng] = useState('-122.4294');
+  const [destLat] = useState(params.destLat ? String(params.destLat) : '37.7749');
+  const [destLng] = useState(params.pickupLng ? String(params.destLng) : '-122.4194');
   const [destAddress] = useState(params.destAddress ? String(params.destAddress) : 'Destination');
   const [customPrice, setCustomPrice] = useState('');
 
@@ -148,7 +148,7 @@ export default function PassengerRequestScreen() {
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Suggested Price</Text>
-                <Text style={styles.infoPriceValue}>${suggestedPrice.toFixed(2)}</Text>
+                <Text style={styles.infoPriceValue}>DH{suggestedPrice.toFixed(2)}</Text>
               </View>
             </View>
           </View>
@@ -160,7 +160,7 @@ export default function PassengerRequestScreen() {
             </Text>
             
             <View style={styles.priceInputContainer}>
-              <DollarSign size={20} color="#6b7280" />
+              <DollarSign size={24} color="#10b981" />
               <TextInput
                 style={styles.priceInput}
                 placeholder={suggestedPrice.toFixed(2)}

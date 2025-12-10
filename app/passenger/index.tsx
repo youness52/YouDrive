@@ -25,7 +25,9 @@ export default function PassengerHomeScreen() {
   const [pickupLocation, setPickupLocation] = useState<Coordinates | null>(null);
   const [pickupAddress, setPickupAddress] = useState('');
   const [destAddress, setDestAddress] = useState('');
+  const [destLocation, setDestLocation] = useState<Coordinates | null>(null);
   const [selectingPickup, setSelectingPickup] = useState(false);
+  const [selectingDestination, setSelectingDestination] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -72,6 +74,8 @@ export default function PassengerHomeScreen() {
         pickupLat: pickupLocation.latitude,
         pickupLng: pickupLocation.longitude,
         pickupAddress: pickupAddress || 'Selected Location',
+        destLat: destLocation.latitude,
+        destLng: destLocation.longitude,
         destAddress,
       },
     });
@@ -83,12 +87,22 @@ export default function PassengerHomeScreen() {
       setPickupLocation({ latitude, longitude });
       setPickupAddress(`Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
       setSelectingPickup(false);
+    } else if (selectingDestination) {
+      const { latitude, longitude } = event.nativeEvent.coordinate;
+      setDestLocation({ latitude, longitude });
+      setDestAddress(`Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+      setSelectingDestination(false);
     }
   };
 
   const handleSelectPickupOnMap = () => {
     setSelectingPickup(true);
     Alert.alert('Select Pickup', 'Tap anywhere on the map to set pickup location');
+  };
+
+  const handleSelectDestinationOnMap = () => {
+    setSelectingDestination(true);
+    Alert.alert('Select Destination', 'Tap anywhere on the map to set destination location');
   };
 
   if (loading || !location) {
@@ -123,6 +137,17 @@ export default function PassengerHomeScreen() {
           >
             <View style={[styles.pickupMarker, selectingPickup && styles.pickupMarkerActive]}>
               <MapPin size={24} color="#fff" />
+            </View>
+          </Marker>
+        )}
+        {destLocation && (
+          <Marker
+            coordinate={destLocation}
+            title="Destination Location"
+            pinColor={selectingDestination ? "#f59e0b" : "#ef4444"}
+          >
+            <View style={[styles.destMarker, selectingDestination && styles.destMarkerActive]}>
+              <Navigation size={24} color="#fff" />
             </View>
           </Marker>
         )}
@@ -161,13 +186,17 @@ export default function PassengerHomeScreen() {
 
           <View style={styles.searchRow}>
             <Navigation size={20} color="#ef4444" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Where to?"
-              placeholderTextColor="#9ca3af"
-              value={destAddress}
-              onChangeText={setDestAddress}
-            />
+            <View style={styles.destInputContainer}>
+              <Text style={styles.destText} numberOfLines={1}>
+                {destAddress || 'Tap map to select destination'}
+              </Text>
+              <TouchableOpacity
+                style={styles.selectMapButton}
+                onPress={handleSelectDestinationOnMap}
+              >
+                <Target size={16} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -317,5 +346,34 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: '#ecfdf5',
     borderRadius: 8,
+  },
+  destMarker: {
+    backgroundColor: '#ef4444',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  destMarkerActive: {
+    backgroundColor: '#f59e0b',
+  },
+  destInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  destText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
   },
 });

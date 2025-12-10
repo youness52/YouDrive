@@ -3,9 +3,11 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "bunx rork start -p t1ch4smchr0up3ye07hc0 --tunnel",
-    "start-web": "bunx rork start -p t1ch4smchr0up3ye07hc0 --web --tunnel",
-    "start-web-dev": "DEBUG=expo* bunx rork start -p t1ch4smchr0up3ye07hc0 --web --tunnel",
+    "start": "expo start",
+    "reset-project": "node ./scripts/reset-project.js",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
     "lint": "expo lint"
   },
   "dependencies": {
@@ -33,7 +35,7 @@
     "expo-symbols": "~1.0.7",
     "expo-system-ui": "~6.0.8",
     "expo-web-browser": "~15.0.9",
-    "lucide-react-native": "^0.475.0",
+  
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",

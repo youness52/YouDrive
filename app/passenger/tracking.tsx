@@ -11,6 +11,9 @@ import {
   StyleSheet,
   Text,
   View,
+  TouchableOpacity,
+  Alert,
+  TextInput,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,7 +37,7 @@ export default function PassengerTrackingScreen() {
         .in('status', ['pending', 'accepted', 'driver_arrived', 'in_progress'])
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
       return data as RideRequest;
@@ -56,8 +59,6 @@ export default function PassengerTrackingScreen() {
           filter: `driver_id=eq.${rideQuery.data.driver_id}`,
         },
         (payload: any) => {
-          console.log('Location update:', payload);
-          
           if (payload.new) {
             const newLocation: Coordinates = {
               latitude: parseFloat(payload.new.lat),
@@ -67,7 +68,6 @@ export default function PassengerTrackingScreen() {
             if (driverLocation) {
               const start = driverLocation;
               const end = newLocation;
-              
               let step = 0;
               const steps = 20;
               const animationInterval = setInterval(() => {
@@ -76,9 +76,7 @@ export default function PassengerTrackingScreen() {
                 const interpolated = interpolateCoordinates(start, end, fraction);
                 setDriverLocation(interpolated);
 
-                if (step >= steps) {
-                  clearInterval(animationInterval);
-                }
+                if (step >= steps) clearInterval(animationInterval);
               }, 50);
             } else {
               setDriverLocation(newLocation);
@@ -88,9 +86,7 @@ export default function PassengerTrackingScreen() {
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, [rideQuery.data?.driver_id, driverLocation]);
 
   useEffect(() => {
@@ -124,6 +120,36 @@ export default function PassengerTrackingScreen() {
   const destCoords: Coordinates = {
     latitude: rideQuery.data.dest_lat,
     longitude: rideQuery.data.dest_lng,
+  };
+
+  const handleCancelRide = async () => {
+    try {
+      const { error } = await supabase
+        .from('ride_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', rideQuery.data.id);
+
+      if (error) throw error;
+      router.replace('/passenger'); // back to main screen
+    } catch (err) {
+      console.error('Cancel ride error:', err);
+      Alert.alert('Error', 'Failed to cancel the ride.');
+    }
+  };
+
+  const handleEditPrice = async () => {
+    try {
+      const { error } = await supabase
+        .from('ride_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', rideQuery.data.id);
+
+      if (error) throw error;
+      router.back(); // back to main screen
+    } catch (err) {
+      console.error('Cancel ride error:', err);
+      Alert.alert('Error', 'Failed to cancel the ride.');
+    }
   };
 
   return (
@@ -160,11 +186,7 @@ export default function PassengerTrackingScreen() {
           </Marker>
         )}
 
-        <Polyline
-          coordinates={[pickupCoords, destCoords]}
-          strokeColor="#10b981"
-          strokeWidth={3}
-        />
+        <Polyline coordinates={[pickupCoords, destCoords]} strokeColor="#10b981" strokeWidth={3} />
       </MapView>
 
       <SafeAreaView style={styles.overlay} edges={['top']}>
@@ -186,9 +208,7 @@ export default function PassengerTrackingScreen() {
                 <User size={24} color="#fff" />
               </View>
               <View style={styles.driverDetails}>
-                <Text style={styles.driverName}>
-                  {rideQuery.data.driver.user?.name || 'Driver'}
-                </Text>
+                <Text style={styles.driverName}>{rideQuery.data.driver.user?.name || 'Driver'}</Text>
                 <Text style={styles.driverCar}>
                   {rideQuery.data.driver.car_model} • {rideQuery.data.driver.plate}
                 </Text>
@@ -216,18 +236,23 @@ export default function PassengerTrackingScreen() {
             </View>
           </View>
         </View>
+
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#ef4444' }]} onPress={handleCancelRide}>
+            <Text style={styles.actionButtonText}>Cancel Ride</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#fbbf24' }]} onPress={handleEditPrice}>
+            <Text style={styles.actionButtonText}>Edit Price</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  map: { flex: 1 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -235,20 +260,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     gap: 16,
   },
-  loadingText: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#ef4444',
-  },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-  },
+  loadingText: { fontSize: 16, color: '#6b7280' },
+  errorText: { fontSize: 16, color: '#ef4444' },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   statusCard: {
     marginHorizontal: 20,
     marginTop: 16,
@@ -261,12 +275,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  statusText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#111827',
-    textAlign: 'center',
-  },
+  statusText: { fontSize: 16, fontWeight: '600', color: '#111827', textAlign: 'center' },
   pickupMarker: {
     backgroundColor: '#10b981',
     width: 40,
@@ -276,11 +285,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
   },
   destMarker: {
     backgroundColor: '#ef4444',
@@ -291,11 +295,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
   },
   carMarker: {
     backgroundColor: '#3b82f6',
@@ -306,35 +305,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
   },
-  bottomContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-  },
+  bottomContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20 },
   infoCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
     gap: 16,
+    marginBottom: 12,
   },
-  driverInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
+  driverInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   driverAvatar: {
     width: 48,
     height: 48,
@@ -343,48 +323,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  driverDetails: {
+  driverDetails: { flex: 1 },
+  driverName: { fontSize: 16, fontWeight: '600', color: '#111827' },
+  driverCar: { fontSize: 14, color: '#6b7280' },
+  ratingBadge: { backgroundColor: '#fef3c7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  ratingText: { fontSize: 14, fontWeight: '600', color: '#92400e' },
+  divider: { height: 1, backgroundColor: '#e5e7eb' },
+  tripDetails: { gap: 8 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  detailLabel: { fontSize: 14, color: '#6b7280' },
+  detailValue: { fontSize: 16, fontWeight: '600', color: '#111827' },
+  actionButtons: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  actionButton: {
     flex: 1,
-  },
-  driverName: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#111827',
-  },
-  driverCar: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  ratingBadge: {
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
     borderRadius: 12,
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#92400e',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-  },
-  tripDetails: {
-    gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    height: 48,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  detailLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  detailValue: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#111827',
-  },
+  actionButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

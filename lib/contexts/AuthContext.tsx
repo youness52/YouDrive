@@ -1,10 +1,18 @@
+// lib/contexts/AuthContext.tsx
 import createContextHook from '@nkzw/create-context-hook';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
-import { User } from '../types';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export type User = {
+  id: string;
+  name?: string | null;
+  phone?: string | null;
+  role?: 'passenger' | 'driver' | null;
+  created_at?: string;
+};
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [session, setSession] = useState<Session | null>(null);
@@ -12,11 +20,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch user row from 'users' table based on supabase user id
   const userQuery = useQuery({
     queryKey: ['user', supabaseUser?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<User | null> => {
       if (!supabaseUser?.id) return null;
-      
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -27,22 +35,26 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return data as User;
     },
     enabled: !!supabaseUser,
+    staleTime: 1000 * 60 * 5,
   });
 
+  // Listen to auth state and get initial session
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session ?? null);
+      setSupabaseUser(data.session?.user ?? null);
+      setLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setSupabaseUser(session?.user ?? null);
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
-      setSession(session);
-      setSupabaseUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -51,54 +63,53 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, [userQuery.data]);
 
+  // Mutations
   const signInWithOTP = useMutation({
     mutationFn: async (phone: string) => {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone,
-      });
+      const { data, error } = await supabase.auth.signInWithOtp({ phone });
       if (error) throw error;
+      // data may contain a session if Supabase auto-auths
+      return data;
     },
   });
 
   const verifyOTP = useMutation({
     mutationFn: async ({ phone, token }: { phone: string; token: string }) => {
-      const { error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         phone,
         token,
         type: 'sms',
       });
       if (error) throw error;
+      return data;
     },
   });
 
   const completeProfile = useMutation({
     mutationFn: async ({ name, role }: { name: string; role: 'passenger' | 'driver' }) => {
-      if (!supabaseUser) throw new Error('No user found');
+      if (!supabaseUser) throw new Error('No authenticated user');
 
-      const { error } = await supabase.from('users').insert({
+      // upsert user record (insert if not exists)
+      const { error } = await supabase.from('users').upsert({
         id: supabaseUser.id,
         name,
         role,
-        phone: supabaseUser.phone || '',
+        phone: supabaseUser.phone ?? null,
       });
-
       if (error) throw error;
 
+      // If driver, ensure driver row exists
       if (role === 'driver') {
-        const { error: driverError } = await supabase
-          .from('drivers')
-          .insert({
-            user_id: supabaseUser.id,
-            car_model: 'Not set',
-            car_color: 'Not set',
-            plate: 'Not set',
-          })
-          .select()
-          .single();
-
+        const { error: driverError } = await supabase.from('drivers').upsert({
+          user_id: supabaseUser.id,
+          car_model: 'Not set',
+          car_color: 'Not set',
+          plate: 'Not set',
+        });
         if (driverError) throw driverError;
       }
 
+      // refetch user
       await userQuery.refetch();
     },
   });
